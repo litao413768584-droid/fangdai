@@ -28,9 +28,10 @@ jobs:
         run: npm install
 
       - name: 编译 Web 前端并打包 Windows EXE
+        shell: bash
         run: |
           npm run build
-          npx electron-builder --win portable nsis
+          npx electron-builder --win
 
       - name: 上传 Windows EXE 构件
         uses: actions/upload-artifact@v4
@@ -108,8 +109,8 @@ jobs:
       - name: 整理并重命名构件文件
         run: |
           mkdir -p ./release-final
-          cp ./release-exe/*.exe ./release-final/Fangdai-Sandbox-Desktop.exe || true
-          cp ./release-apk/app-debug.apk ./release-final/Fangdai-Sandbox-Mobile.apk || true
+          cp ./release-exe/*.exe ./release-final/ 2>/dev/null || true
+          cp ./release-apk/app-debug.apk ./release-final/Fangdai-Sandbox-Mobile.apk 2>/dev/null || true
 
       - name: 设置版本标签
         run: |
