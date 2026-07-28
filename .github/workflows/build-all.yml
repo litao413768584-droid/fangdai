@@ -35,7 +35,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-exe-app
-          path: src-tauri/target/release/bundle/nsis/*.exe
+          path: src-tauri/target/release/bundle/**/*.exe
 
   # 2. 构建 Android 移动端 APK (基于 Capacitor + Gradle)
   build-android-apk:
