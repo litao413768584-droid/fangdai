@@ -30,19 +30,27 @@ jobs:
           targets: x86_64-pc-windows-msvc
 
       - name: 安装项目依赖
-        run: |
-          npm install
+        run: npm install
 
       - name: 编译构建 Web 前端静态资源
         run: npm run build
+
+      - name: 设置版本标签
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "TAG_NAME=${{ github.ref_name }}" >> $GITHUB_ENV
+          else
+            echo "TAG_NAME=v1.0.${{ github.run_number }}" >> $GITHUB_ENV
+          fi
+        shell: bash
 
       - name: 使用 Tauri 打包 Windows EXE
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('v1.0.{0}', github.run_number) }}
-          releaseName: '房贷提前还款分析沙盒 Release ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('v1.0.{0}', github.run_number) }}'
+          tagName: '${{ env.TAG_NAME }}'
+          releaseName: '房贷提前还款分析沙盒 Release ${{ env.TAG_NAME }}'
           releaseDraft: true
           prerelease: false
 
@@ -125,12 +133,21 @@ jobs:
           cp ./release-exe/*.exe ./release-final/Fangdai-Sandbox-Desktop-Setup.exe || cp ./release-exe/*/*.exe ./release-final/Fangdai-Sandbox-Desktop-Setup.exe || true
           cp ./release-apk/app-debug.apk ./release-final/Fangdai-Sandbox-Mobile.apk || true
 
+      - name: 设置版本标签
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "TAG_NAME=${{ github.ref_name }}" >> $GITHUB_ENV
+          else
+            echo "TAG_NAME=v1.0.${{ github.run_number }}" >> $GITHUB_ENV
+          fi
+        shell: bash
+
       - name: 发布至 GitHub Release (包含双平台安装包)
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('v1.0.{0}', github.run_number) }}
+          tag_name: '${{ env.TAG_NAME }}'
           files: ./release-final/*
-          name: 房贷提前还款分析沙盒 Release ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('v1.0.{0}', github.run_number) }}
+          name: '房贷提前还款分析沙盒 Release ${{ env.TAG_NAME }}'
           body: |
             🎉 **跨平台应用双端合并发布！**
 
