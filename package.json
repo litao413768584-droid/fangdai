@@ -36,7 +36,6 @@
     ],
     "win": {
       "target": ["portable", "nsis"],
-      "icon": "src-tauri/icons/icon.ico",
       "artifactName": "Fangdai-Sandbox-Desktop-${target}.${ext}"
     },
     "nsis": {
