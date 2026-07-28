@@ -6,10 +6,15 @@ on:
       - 'v*'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   # 1. 构建 Windows 桌面端 EXE (基于 Tauri 2.0 超小体积版)
   build-windows-exe:
     runs-on: windows-latest
+    permissions:
+      contents: write
     steps:
       - name: 检出项目源码
         uses: actions/checkout@v4
@@ -21,15 +26,25 @@ jobs:
 
       - name: 安装 Rust 工具链 (Tauri 必备)
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
 
       - name: 安装项目依赖
-        run: npm install
+        run: |
+          npm install
 
-      - name: 编译构建 Web 前端产物
+      - name: 编译构建 Web 前端静态资源
         run: npm run build
 
-      - name: 使用 Tauri 编译打包 Windows EXE
-        run: npx tauri build
+      - name: 使用 Tauri 打包 Windows EXE
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('v1.0.{0}', github.run_number) }}
+          releaseName: '房贷提前还款分析沙盒 Release ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('v1.0.{0}', github.run_number) }}'
+          releaseDraft: true
+          prerelease: false
 
       - name: 上传 Windows EXE 构件
         uses: actions/upload-artifact@v4
@@ -40,6 +55,8 @@ jobs:
   # 2. 构建 Android 移动端 APK (基于 Capacitor + Gradle)
   build-android-apk:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: 检出项目源码
         uses: actions/checkout@v4
@@ -49,7 +66,7 @@ jobs:
         with:
           node-version: 22
 
-      - name: 配置 Java JDK 21 (Capacitor 8 必备)
+      - name: 配置 Java JDK 21 (Capacitor 必需)
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -64,15 +81,18 @@ jobs:
       - name: 构建 Web 前端静态资源
         run: npm run build
 
-      - name: 初始化 Capacitor 并编译 Android Debug APK
+      - name: 初始化 Capacitor 并同步 Android 工程
         run: |
           if [ ! -d "android" ]; then
             npx cap add android
           fi
           npx cap sync android
+
+      - name: 编译 Android Debug APK
+        run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleDebug --stacktrace --no-daemon
 
       - name: 上传 Android APK 构件
         uses: actions/upload-artifact@v4
@@ -102,7 +122,7 @@ jobs:
       - name: 整理并重命名构件文件
         run: |
           mkdir -p ./release-final
-          cp ./release-exe/*.exe ./release-final/Fangdai-Sandbox-Desktop-Setup.exe || true
+          cp ./release-exe/*.exe ./release-final/Fangdai-Sandbox-Desktop-Setup.exe || cp ./release-exe/*/*.exe ./release-final/Fangdai-Sandbox-Desktop-Setup.exe || true
           cp ./release-apk/app-debug.apk ./release-final/Fangdai-Sandbox-Mobile.apk || true
 
       - name: 发布至 GitHub Release (包含双平台安装包)
