@@ -33,7 +33,7 @@
       "package.json"
     ],
     "win": {
-      "target": "portable"
+      "target": ["portable", "nsis"]
     }
   },
   "dependencies": {
