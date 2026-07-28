@@ -29,12 +29,9 @@ jobs:
 
       - name: 编译 Web 前端并打包 Windows EXE
         shell: bash
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           npm run build
-          npx electron-builder --win
+          npx electron-builder --win -p never
 
       - name: 上传 Windows EXE 构件
         uses: actions/upload-artifact@v4
