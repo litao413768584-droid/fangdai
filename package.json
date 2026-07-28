@@ -24,7 +24,7 @@
   },
   "build": {
     "appId": "com.mortgage.sandbox",
-    "productName": "房贷提前还款分析沙盒",
+    "productName": "FangdaiSandbox",
     "directories": {
       "output": "dist_electron"
     },
@@ -36,7 +36,8 @@
     ],
     "win": {
       "target": ["portable", "nsis"],
-      "icon": "src-tauri/icons/icon.ico"
+      "icon": "src-tauri/icons/icon.ico",
+      "artifactName": "Fangdai-Sandbox-Desktop-${target}.${ext}"
     },
     "nsis": {
       "oneClick": false,
