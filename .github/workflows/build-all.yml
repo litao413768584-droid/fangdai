@@ -1,10 +1,4 @@
-name: 自动同时打包 EXE 和 APK (Release Workflow)
-
-on:
-  push:
-    tags:
-      - 'v*'
-  workflow_dispatch:
+﻿workflow_dispatch:
 
 permissions:
   contents: write
@@ -22,10 +16,20 @@ jobs:
       - name: 配置 Node.js 环境
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 20
 
       - name: 安装项目依赖
         run: npm install
+
+      - name: 调试 - 查看环境信息
+        shell: bash
+        run: |
+          echo "Node version:"
+          node --version
+          echo "NPM version:"
+          npm --version
+          echo "Current directory files:"
+          ls -la
 
       - name: 编译 Web 前端并打包 Windows EXE
         shell: bash
@@ -43,12 +47,6 @@ jobs:
   build-android-apk:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-    steps:
-      - name: 检出项目源码
-        uses: actions/checkout@v4
-
-      - name: 配置 Node.js 环境
         uses: actions/setup-node@v4
         with:
           node-version: 22
