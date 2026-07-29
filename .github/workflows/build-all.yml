@@ -1,50 +1,42 @@
-﻿on:
-  workflow_dispatch:
+﻿name: Build Tauri App
 
-permissions:
-  contents: write
+on:
+  push:
+    branches:
+      - main
 
 jobs:
-  build-windows-exe:
+  build:
     runs-on: windows-latest
-    permissions:
-      contents: write
+
     steps:
-      - name: 检出项目源码
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: 配置 Node.js 环境
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: 安装项目依赖
-        run: |
-          npm install
-          npm install -D @tailwindcss/postcss postcss autoprefixer
-
-      - name: 调试 - 查看环境信息
-        shell: bash
-        run: |
-          echo "Node version:"
-          node --version
-          echo "NPM version:"
-          npm --version
-          echo "Current directory files:"
-          ls -la
-
-      - name: 编译 Web 前端并打包 Windows EXE
-        shell: bash
-        run: |
-          npm run build
-          npx electron-builder --win -p never
-
-      - name: 上传 Windows EXE 构件
-        uses: actions/upload-artifact@v4
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
         with:
-          name: windows-exe-app
-          path: dist_electron/*.exe
+          toolchain: stable
 
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "v${{ github.ref_name }}"
+          body: "自动打包的安装包"
+          draft: false
+          prerelease: false
   build-android-apk:
     runs-on: ubuntu-latest
     permissions:
@@ -57,7 +49,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '21'
+          java-version: '21'  # 从 17 改为 21
 
       - name: 配置 Node.js 环境
         uses: actions/setup-node@v4
@@ -87,62 +79,3 @@ jobs:
         with:
           name: android-apk-app
           path: android/app/build/outputs/apk/debug/*.apk
-
-  create-release:
-    needs: [build-windows-exe, build-android-apk]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: 下载 Windows EXE 构件
-        uses: actions/download-artifact@v4
-        with:
-          name: windows-exe-app
-          path: ./release-exe
-
-      - name: 下载 Android APK 构件
-        uses: actions/download-artifact@v4
-        with:
-          name: android-apk-app
-          path: ./release-apk
-
-      - name: 整理并重命名构件文件
-        run: |
-          mkdir -p ./release-final
-          cp ./release-exe/*.exe ./release-final/ 2>/dev/null || true
-          cp ./release-apk/app-debug.apk ./release-final/Fangdai-Sandbox-Mobile.apk 2>/dev/null || true
-
-      - name: 设置版本标签
-        run: |
-          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            echo "TAG_NAME=${{ github.ref_name }}" >> $GITHUB_ENV
-          else
-            echo "TAG_NAME=v1.0.${{ github.run_number }}" >> $GITHUB_ENV
-          fi
-        shell: bash
-
-      - name: 发布至 GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ env.TAG_NAME }}
-          files: ./release-final/*
-          name: 房贷提前还款分析沙盒 Release ${{ env.TAG_NAME }}
-          body: |
-            🎉 **跨平台应用双端合并发布！**
-
-            本版本同时提供 Windows 桌面端和 Android 移动端安装包：
-            - 🖥️ **Windows 桌面端**：`Fangdai-Sandbox-Desktop.exe`
-            - 📱 **Android 移动端**：`Fangdai-Sandbox-Mobile.apk`
-
-            无需安装任何依赖环境，下载双击/安装即可直接使用。
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: 上传打包合并产物至 Actions Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: Fangdai-Sandbox-EXE-and-APK
-          path: ./release-final/*
-  
