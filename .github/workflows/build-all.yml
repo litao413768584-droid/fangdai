@@ -4,7 +4,7 @@ permissions:
   contents: write
 
 jobs:
-  # 1. 构建 Windows 桌面端 EXE (基于 Electron 引擎，零环境打包免安装/安装包)
+  # 1. 构建 Windows 桌面端 EXE
   build-windows-exe:
     runs-on: windows-latest
     permissions:
@@ -82,49 +82,8 @@ jobs:
         with:
           name: android-apk-app
           path: android/app/build/outputs/apk/debug/*.apk
-  # 2. 构建 Android 移动端 APK (基于 Capacitor + Gradle)
-  build-android-apk:
-    runs-on: ubuntu-latest
-    permissions:
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
 
-      - name: 配置 Java JDK 21 (Capacitor 必需)
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '21'
-
-      - name: 配置 Android SDK 环境
-        uses: android-actions/setup-android@v3
-
-      - name: 安装项目依赖
-        run: npm install
-
-      - name: 构建 Web 前端静态资源
-        run: npm run build
-
-      - name: 初始化 Capacitor 并同步 Android 工程
-        run: |
-          if [ ! -d "android" ]; then
-            npx cap add android
-          fi
-          npx cap sync android
-
-      - name: 编译 Android Debug APK
-        run: |
-          cd android
-          chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace --no-daemon
-
-      - name: 上传 Android APK 构件
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-apk-app
-          path: android/app/build/outputs/apk/debug/app-debug.apk
-
-  # 3. 自动归档发布合并 GitHub Release (包含 EXE 与 APK)
+  # 3. 自动归档发布合并 GitHub Release
   create-release:
     needs: [build-windows-exe, build-android-apk]
     runs-on: ubuntu-latest
@@ -158,7 +117,7 @@ jobs:
           fi
         shell: bash
 
-      - name: 发布至 GitHub Release (包含双平台安装包)
+      - name: 发布至 GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG_NAME }}
@@ -168,8 +127,8 @@ jobs:
             🎉 **跨平台应用双端合并发布！**
 
             本版本同时提供 Windows 桌面端和 Android 移动端安装包：
-            - 🖥️ **Windows 桌面端**：`Fangdai-Sandbox-Desktop.exe` (双击直接运行免安装 / 安装包)
-            - 📱 **Android 移动端**：`Fangdai-Sandbox-Mobile.apk` (Capacitor 原生安卓包)
+            - 🖥️ **Windows 桌面端**：`Fangdai-Sandbox-Desktop.exe`
+            - 📱 **Android 移动端**：`Fangdai-Sandbox-Mobile.apk`
 
             无需安装任何依赖环境，下载双击/安装即可直接使用。
           draft: false
@@ -177,7 +136,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 上传打包合并产物至 Actions Artifacts (方便直接页面下载)
+      - name: 上传打包合并产物至 Actions Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: Fangdai-Sandbox-EXE-and-APK
