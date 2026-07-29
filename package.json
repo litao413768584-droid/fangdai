@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "fangdai-sandbox",
   "private": true,
   "version": "1.0.0",
@@ -36,7 +36,7 @@
     ],
     "win": {
       "target": ["portable", "nsis"],
-      "artifactName": "Fangdai-Sandbox-Desktop-${target}.${ext}"
+      "artifactName": "Fangdai-Sandbox-Desktop.exe"
     },
     "nsis": {
       "oneClick": false,
