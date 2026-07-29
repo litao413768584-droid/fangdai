@@ -1,10 +1,10 @@
 ﻿on:
   workflow_dispatch:
+
 permissions:
   contents: write
 
 jobs:
-  # 1. 构建 Windows 桌面端 EXE
   build-windows-exe:
     runs-on: windows-latest
     permissions:
@@ -16,11 +16,12 @@ jobs:
       - name: 配置 Node.js 环境
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 20
 
       - name: 安装项目依赖
-        run: npm install
-    npm install -D tailwindcss postcss autoprefixer
+        run: |
+          npm install
+          npm install -D tailwindcss postcss autoprefixer
 
       - name: 调试 - 查看环境信息
         shell: bash
@@ -44,11 +45,104 @@ jobs:
           name: windows-exe-app
           path: dist_electron/*.exe
 
-  # 2. 构建 Android 移动端 APK (基于 Capacitor + Gradle)
   build-android-apk:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    steps:
+      - name: 检出项目源码
+        uses: actions/checkout@v4
+
+      - name: 设置 Java 环境
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: 配置 Node.js 环境
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: 安装 Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: 安装项目依赖
+        run: |
+          npm install
+          npm install -D tailwindcss postcss autoprefixer
+
+      - name: 构建 Android APK
+        run: |
+          npm run build
+          npx cap sync
+          npx cap open android
+          cd android
+          ./gradlew assembleDebug
+
+      - name: 上传 Android APK 构件
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk-app
+          path: android/app/build/outputs/apk/debug/*.apk
+
+  create-release:
+    needs: [build-windows-exe, build-android-apk]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: 下载 Windows EXE 构件
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-exe-app
+          path: ./release-exe
+
+      - name: 下载 Android APK 构件
+        uses: actions/download-artifact@v4
+        with:
+          name: android-apk-app
+          path: ./release-apk
+
+      - name: 整理并重命名构件文件
+        run: |
+          mkdir -p ./release-final
+          cp ./release-exe/*.exe ./release-final/ 2>/dev/null || true
+          cp ./release-apk/app-debug.apk ./release-final/Fangdai-Sandbox-Mobile.apk 2>/dev/null || true
+
+      - name: 设置版本标签
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "TAG_NAME=${{ github.ref_name }}" >> $GITHUB_ENV
+          else
+            echo "TAG_NAME=v1.0.${{ github.run_number }}" >> $GITHUB_ENV
+          fi
+        shell: bash
+
+      - name: 发布至 GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG_NAME }}
+          files: ./release-final/*
+          name: 房贷提前还款分析沙盒 Release ${{ env.TAG_NAME }}
+          body: |
+            🎉 **跨平台应用双端合并发布！**
+
+            本版本同时提供 Windows 桌面端和 Android 移动端安装包：
+            - 🖥️ **Windows 桌面端**：`Fangdai-Sandbox-Desktop.exe`
+            - 📱 **Android 移动端**：`Fangdai-Sandbox-Mobile.apk`
+
+            无需安装任何依赖环境，下载双击/安装即可直接使用。
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 上传打包合并产物至 Actions Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Fangdai-Sandbox-EXE-and-APK
+          path: ./release-final/*
     steps:
       - name: 检出项目源码
         uses: actions/checkout@v4
