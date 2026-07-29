@@ -22,6 +22,7 @@ jobs:
         run: |
           npm install
           npm install -D @tailwindcss/postcss postcss autoprefixer
+
       - name: 调试 - 查看环境信息
         shell: bash
         run: |
@@ -74,9 +75,11 @@ jobs:
       - name: 构建 Android APK
         run: |
           npm run build
+          npx cap add android
           npx cap sync
           npx cap open android
           cd android
+          chmod +x gradlew
           ./gradlew assembleDebug
 
       - name: 上传 Android APK 构件
@@ -142,3 +145,4 @@ jobs:
         with:
           name: Fangdai-Sandbox-EXE-and-APK
           path: ./release-final/*
+  
