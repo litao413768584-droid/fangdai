@@ -1,42 +1,50 @@
-﻿name: Build Tauri App
+﻿on:
+  workflow_dispatch:
 
-on:
-  push:
-    branches:
-      - main
+permissions:
+  contents: write
 
 jobs:
-  build:
+  build-windows-exe:
     runs-on: windows-latest
-
+    permissions:
+      contents: write
     steps:
-      - name: Checkout code
+      - name: 检出项目源码
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: 配置 Node.js 环境
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Setup Rust
+      - name: 安装 Rust 工具链
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+          target: x86_64-pc-windows-msvc
+          override: true
 
-      - name: Install dependencies
-        run: npm install
+      - name: 安装 Tauri CLI
+        run: cargo install tauri-cli
 
-      - name: Build frontend
-        run: npm run build
+      - name: 安装项目依赖
+        run: |
+          npm install
+          npm install -D @tailwindcss/postcss postcss autoprefixer
 
-      - name: Build Tauri app
-        uses: tauri-apps/tauri-action@v0
+      - name: 构建 Windows EXE
+        shell: bash
+        run: |
+          npm run build
+          cargo tauri build --target x86_64-pc-windows-msvc
+
+      - name: 上传 Windows EXE 构件
+        uses: actions/upload-artifact@v4
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: "v${{ github.ref_name }}"
-          body: "自动打包的安装包"
-          draft: false
-          prerelease: false
+          name: windows-exe-app
+          path: src-tauri/target/release/bundle/nsis/*.exe
+
   build-android-apk:
     runs-on: ubuntu-latest
     permissions:
@@ -49,7 +57,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '21'  # 从 17 改为 21
+          java-version: '21'
 
       - name: 配置 Node.js 环境
         uses: actions/setup-node@v4
@@ -59,23 +67,87 @@ jobs:
       - name: 安装 Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: 安装 Rust 工具链
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: 安装 Tauri CLI
+        run: cargo install tauri-cli
+
       - name: 安装项目依赖
         run: |
           npm install
           npm install -D @tailwindcss/postcss postcss autoprefixer
 
+      - name: 初始化 Tauri Android 平台
+        run: |
+          cargo tauri android init
+
       - name: 构建 Android APK
         run: |
           npm run build
-          npx cap add android
-          npx cap sync
-          npx cap open android
-          cd android
-          chmod +x gradlew
-          ./gradlew assembleDebug
+          cargo tauri android build --apk
 
       - name: 上传 Android APK 构件
         uses: actions/upload-artifact@v4
         with:
           name: android-apk-app
-          path: android/app/build/outputs/apk/debug/*.apk
+          path: gen/android/app/build/outputs/apk/*/app-*.apk
+
+  create-release:
+    needs: [build-windows-exe, build-android-apk]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: 下载 Windows EXE 构件
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-exe-app
+          path: ./release-exe
+
+      - name: 下载 Android APK 构件
+        uses: actions/download-artifact@v4
+        with:
+          name: android-apk-app
+          path: ./release-apk
+
+      - name: 整理并重命名构件文件
+        run: |
+          mkdir -p ./release-final
+          cp ./release-exe/*.exe ./release-final/Fangdai-Sandbox-Desktop.exe 2>/dev/null || true
+          cp ./release-apk/*.apk ./release-final/Fangdai-Sandbox-Mobile.apk 2>/dev/null || true
+
+      - name: 设置版本标签
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "TAG_NAME=${{ github.ref_name }}" >> $GITHUB_ENV
+          else
+            echo "TAG_NAME=v1.0.${{ github.run_number }}" >> $GITHUB_ENV
+          fi
+        shell: bash
+
+      - name: 发布至 GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG_NAME }}
+          files: ./release-final/*
+          name: 房贷提前还款分析沙盒 Release ${{ env.TAG_NAME }}
+          body: |
+            🎉 **Tauri 跨平台应用发布！**
+            
+            本版本基于 Tauri 2.0 构建，体积更小、性能更好：
+            - 🖥️ **Windows 桌面端**：Fangdai-Sandbox-Desktop.exe (~5-8MB)
+            - 📱 **Android 移动端**：Fangdai-Sandbox-Mobile.apk (~5-8MB)
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 上传打包合并产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: Fangdai-Sandbox-EXE-and-APK
+          path: ./release-final/*
