@@ -3,7 +3,7 @@
 on:
   push:
     branches: [ main ]
-  workflow_dispatch:  # 允许手动触发
+  workflow_dispatch:
 
 jobs:
   build:
@@ -16,7 +16,6 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '18'
-        cache: 'npm'
     
     - name: Setup Rust
       uses: dtolnay/rust-toolchain@stable
@@ -24,17 +23,13 @@ jobs:
         targets: x86_64-pc-windows-msvc
     
     - name: Install dependencies
-      run: npm ci
+      run: npm install
     
     - name: Build Tauri app
       run: npm run tauri build
-      env:
-        TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-        TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
     
     - name: Upload EXE
       uses: actions/upload-artifact@v4
       with:
         name: fangdai-windows
         path: src-tauri/target/release/*.exe
-        compression-level: 0  # 不压缩，保持原始大小
