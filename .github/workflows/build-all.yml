@@ -22,9 +22,6 @@ jobs:
         with:
           targets: x86_64-pc-windows-msvc
 
-      - name: Check Tauri version
-        run: npx tauri --version
-
       - name: Create valid icon.ico
         run: |
           Add-Type -AssemblyName System.Drawing
@@ -43,6 +40,9 @@ jobs:
           Remove-Item -Force -Recurse -ErrorAction SilentlyContinue .\node_modules
           Remove-Item -Force -Recurse -ErrorAction SilentlyContinue .\package-lock.json
           npm install
+
+      - name: Check Tauri version
+        run: npx tauri --version
 
       - name: Build Tauri app
         run: npm run tauri build
