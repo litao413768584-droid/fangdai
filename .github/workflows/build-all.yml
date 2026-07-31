@@ -1,159 +1,40 @@
-name: 自动同时打包 EXE 和 APK (Release Workflow)
+﻿name: Build Windows EXE
 
 on:
   push:
-    tags:
-      - 'v*'
-  workflow_dispatch:
-
-permissions:
-  contents: write
+    branches: [ main ]
+  workflow_dispatch:  # 允许手动触发
 
 jobs:
-  # 1. 构建 Windows 桌面端 EXE (基于 Tauri v2 极轻量引擎，共享系统 WebView2，体积仅 3-8MB)
-  build-windows-exe:
+  build:
     runs-on: windows-latest
-    permissions:
-      contents: write
+    
     steps:
-      - name: 检出项目源码
-        uses: actions/checkout@v4
-
-      - name: 配置 Node.js 环境
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: 安装 Rust 工具链 (Tauri 必需)
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: 安装项目依赖
-        run: npm install
-
-      - name: 编译 Web 前端与 Tauri Windows 极简 EXE
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          npx tauri build
-
-      - name: 收集 Tauri 构建出的 EXE / MSI 产物
-        shell: bash
-        run: |
-          mkdir -p ./dist_tauri
-          find src-tauri/target/release/ -type f \( -name "*.exe" -o -name "*.msi" \) -exec cp {} ./dist_tauri/ \; 2>/dev/null || true
-
-      - name: 上传 Windows EXE 构件
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-exe-app
-          path: dist_tauri/*
-
-  # 2. 构建 Android 移动端 APK (基于 Capacitor + Gradle)
-  build-android-apk:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: 检出项目源码
-        uses: actions/checkout@v4
-
-      - name: 配置 Node.js 环境
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: 配置 Java JDK 21 (Capacitor 必需)
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '21'
-
-      - name: 配置 Android SDK 环境
-        uses: android-actions/setup-android@v3
-
-      - name: 安装项目依赖
-        run: npm install
-
-      - name: 构建 Web 前端静态资源
-        run: npm run build
-
-      - name: 初始化 Capacitor 并同步 Android 工程
-        run: |
-          if [ ! -d "android" ]; then
-            npx cap add android
-          fi
-          npx cap sync android
-
-      - name: 编译 Android Debug APK
-        run: |
-          cd android
-          chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace --no-daemon
-
-      - name: 上传 Android APK 构件
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-apk-app
-          path: android/app/build/outputs/apk/debug/app-debug.apk
-
-  # 3. 自动归档发布合并 GitHub Release (包含 EXE 与 APK)
-  create-release:
-    needs: [build-windows-exe, build-android-apk]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: 下载 Windows EXE 构件
-        uses: actions/download-artifact@v4
-        with:
-          name: windows-exe-app
-          path: ./release-exe
-
-      - name: 下载 Android APK 构件
-        uses: actions/download-artifact@v4
-        with:
-          name: android-apk-app
-          path: ./release-apk
-
-      - name: 整理并重命名构件文件
-        run: |
-          mkdir -p ./release-final
-          cp ./release-exe/*.exe ./release-final/ 2>/dev/null || true
-          cp ./release-exe/*.msi ./release-final/ 2>/dev/null || true
-          cp ./release-apk/app-debug.apk ./release-final/Fangdai-Sandbox-Mobile.apk 2>/dev/null || true
-
-      - name: 设置版本标签
-        run: |
-          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            echo "TAG_NAME=${{ github.ref_name }}" >> $GITHUB_ENV
-          else
-            echo "TAG_NAME=v1.0.${{ github.run_number }}" >> $GITHUB_ENV
-          fi
-        shell: bash
-
-      - name: 发布至 GitHub Release (包含双平台安装包)
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ env.TAG_NAME }}
-          files: ./release-final/*
-          name: 房贷提前还款分析沙盒 Release ${{ env.TAG_NAME }}
-          body: |
-            🎉 **跨平台应用双端合并发布 (Tauri 超小 EXE + Capacitor 安卓包)！**
-
-            本版本同时提供 Windows 桌面端和 Android 移动端安装包：
-            - 🖥️ **Windows 桌面端**：基于 **Tauri v2** 框架打包，依赖 Windows 原生 WebView2，无需内置 Chromium 浏览器，安装包体积仅 **~3-8MB**，极速启动与小巧占用。
-            - 📱 **Android 移动端**：`Fangdai-Sandbox-Mobile.apk` (Capacitor 原生安卓包)
-
-            无需安装任何繁重的运行时，下载双击/安装即可直接运行。
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: 上传打包合并产物至 Actions Artifacts (方便直接页面下载)
-        uses: actions/upload-artifact@v4
-        with:
-          name: Fangdai-Sandbox-EXE-and-APK
-          path: ./release-final/*
-
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Setup Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: x86_64-pc-windows-msvc
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Build Tauri app
+      run: npm run tauri build
+      env:
+        TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+        TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+    
+    - name: Upload EXE
+      uses: actions/upload-artifact@v4
+      with:
+        name: fangdai-windows
+        path: src-tauri/target/release/*.exe
+        compression-level: 0  # 不压缩，保持原始大小
