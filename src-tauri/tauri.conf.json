@@ -6,40 +6,26 @@
     "distDir": "../dist"
   },
   "package": {
-    "productName": "房贷提前还款分析沙盒",
+    "productName": "fangdai",
     "version": "1.0.0"
   },
-  "bundle": {
-    "active": true,
-    "identifier": "com.mortgage.sandbox",
-    "icon": [
-      "icons/icon.ico"
-    ],
-    "resources": [],
-    "externalBin": [],
-    "copyright": "",
-    "category": "Finance",
-    "shortDescription": "房贷计算与提前还款对比工具",
-    "longDescription": "",
-    "windows": {
-      "webviewInstallMode": {
-        "type": "downloadBootstrapper"
-      }
-    },
-    "targets": ["nsis"]
-  },
-  "app": {
-    "security": {
-      "csp": null
+  "tauri": {
+    "bundle": {
+      "active": true,
+      "identifier": "com.mortgage.fangdai",
+      "icon": ["icons/icon.ico"],
+      "targets": "nsis"
     },
     "windows": [
       {
         "title": "房贷提前还款分析沙盒",
         "width": 1200,
         "height": 800,
-        "resizable": true,
-        "fullscreen": false
+        "resizable": true
       }
-    ]
+    ],
+    "security": {
+      "csp": null
+    }
   }
 }
