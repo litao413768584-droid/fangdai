@@ -2,7 +2,7 @@
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -10,46 +10,29 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      # 1. 检出代码
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      # 2. 安装 Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-          cache: 'npm'
 
-      # 3. 安装 Rust（Tauri 需要）
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-msvc
 
-      # 4. 清理并安装依赖
-      - name: Clean install dependencies
+      - name: Install dependencies
         run: |
           Remove-Item -Force -Recurse -ErrorAction SilentlyContinue .\node_modules
           Remove-Item -Force -Recurse -ErrorAction SilentlyContinue .\package-lock.json
-          npm install --no-audit --no-fund
+          npm install
 
-      # 5. 构建前端
-      - name: Build frontend
-        run: npm run build
-
-      # 6. 构建 Tauri 应用
       - name: Build Tauri app
         run: npm run tauri build
 
-      # 7. 上传 EXE 文件
       - name: Upload EXE
         uses: actions/upload-artifact@v4
         with:
           name: fangdai-windows
-          path: |
-            src-tauri/target/release/fangdai.exe
-            src-tauri/target/release/bundle/msi/*.exe
-            src-tauri/target/release/bundle/nsis/*.exe
-          compression-level: 0
-          if-no-files-found: error
+          path: src-tauri/target/release/*.exe
