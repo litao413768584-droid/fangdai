@@ -22,14 +22,13 @@ jobs:
       with:
         targets: x86_64-pc-windows-msvc
 
-    # 关键修复：使用 npm ci 进行干净安装
-    - name: Clean install dependencies
+    - name: Install dependencies
       run: |
-        # 彻底删除可能残留的目录
+        # 删除可能残留的目录
         Remove-Item -Force -Recurse -ErrorAction SilentlyContinue .\node_modules
         Remove-Item -Force -Recurse -ErrorAction SilentlyContinue .\package-lock.json
-        # 运行 npm ci，它会严格依据 package-lock.json 安装，如果没有会自动生成
-        npm ci
+        # 直接安装，会自动生成 package-lock.json
+        npm install
 
     - name: Build Tauri app
       run: npm run tauri build
