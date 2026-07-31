@@ -2,7 +2,7 @@
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
   workflow_dispatch:
 
 jobs:
@@ -10,31 +10,46 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v4
+      # 1. 检出代码
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
+      # 2. 安装 Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
 
-    - name: Setup Rust
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        targets: x86_64-pc-windows-msvc
+      # 3. 安装 Rust（Tauri 需要）
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
 
-    - name: Install dependencies
-      run: |
-        # 删除可能残留的目录
-        Remove-Item -Force -Recurse -ErrorAction SilentlyContinue .\node_modules
-        Remove-Item -Force -Recurse -ErrorAction SilentlyContinue .\package-lock.json
-        # 直接安装，会自动生成 package-lock.json
-        npm install
+      # 4. 清理并安装依赖
+      - name: Clean install dependencies
+        run: |
+          Remove-Item -Force -Recurse -ErrorAction SilentlyContinue .\node_modules
+          Remove-Item -Force -Recurse -ErrorAction SilentlyContinue .\package-lock.json
+          npm install --no-audit --no-fund
 
-    - name: Build Tauri app
-      run: npm run tauri build
+      # 5. 构建前端
+      - name: Build frontend
+        run: npm run build
 
-    - name: Upload EXE
-      uses: actions/upload-artifact@v4
-      with:
-        name: fangdai-windows
-        path: src-tauri/target/release/*.exe
+      # 6. 构建 Tauri 应用
+      - name: Build Tauri app
+        run: npm run tauri build
+
+      # 7. 上传 EXE 文件
+      - name: Upload EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: fangdai-windows
+          path: |
+            src-tauri/target/release/fangdai.exe
+            src-tauri/target/release/bundle/msi/*.exe
+            src-tauri/target/release/bundle/nsis/*.exe
+          compression-level: 0
+          if-no-files-found: error
