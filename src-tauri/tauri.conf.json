@@ -23,7 +23,6 @@
   },
   "bundle": {
     "active": true,
-    "identifier": "com.mortgage.fangdai",
     "icon": ["icons/icon.ico"],
     "targets": ["nsis"]
   }
