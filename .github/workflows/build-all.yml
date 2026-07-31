@@ -24,7 +24,6 @@ jobs:
 
       - name: Create valid icon.ico
         run: |
-          # 使用 PowerShell 生成一个有效的 64x64 图标
           Add-Type -AssemblyName System.Drawing
           $bmp = New-Object System.Drawing.Bitmap(64, 64)
           $g = [System.Drawing.Graphics]::FromImage($bmp)
@@ -45,8 +44,9 @@ jobs:
       - name: Build Tauri app
         run: npm run tauri build
 
-      - name: Upload EXE
+      - name: Upload EXE only
         uses: actions/upload-artifact@v4
         with:
-          name: fangdai-windows
-          path: src-tauri/target/release/*.exe
+          name: fangdai-exe
+          path: src-tauri/target/release/fangdai_sandbox.exe
+          if-no-files-found: error
