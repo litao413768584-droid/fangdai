@@ -22,8 +22,18 @@ jobs:
       with:
         targets: x86_64-pc-windows-msvc
     
-    - name: Install dependencies
-      run: npm install
+    # 关键修复步骤：彻底清理并重装依赖
+    - name: Clean install dependencies
+      run: |
+        # 1. 删除可能损坏的锁文件和依赖目录
+        Remove-Item -Force -Recurse -ErrorAction SilentlyContinue .\package-lock.json
+        Remove-Item -Force -Recurse -ErrorAction SilentlyContinue .\node_modules
+        
+        # 2. 重新安装，这会生成适合 Windows 的完整锁文件
+        npm install
+        
+        # 3. （可选）如果安装过程因网络问题中断，重试一次
+        # npm install --no-audit --no-fund
     
     - name: Build Tauri app
       run: npm run tauri build
