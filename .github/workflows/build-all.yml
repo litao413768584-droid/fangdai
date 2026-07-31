@@ -35,14 +35,38 @@ jobs:
           $fs.Close()
         shell: powershell
 
+      - name: Create tauri.conf.json
+        run: |
+          @'
+          {
+            "identifier": "com.mortgage.fangdai",
+            "productName": "fangdai",
+            "version": "1.0.0",
+            "build": {
+              "frontendDist": "../dist",
+              "devUrl": "http://localhost:1420"
+            },
+            "app": {
+              "windows": [
+                {
+                  "title": "fangdai",
+                  "width": 1200,
+                  "height": 800
+                }
+              ]
+            },
+            "bundle": {
+              "icon": ["icons/icon.ico"]
+            }
+          }
+          '@ | Out-File -FilePath src-tauri/tauri.conf.json -Encoding utf8NoBOM
+        shell: powershell
+
       - name: Install dependencies
         run: |
           Remove-Item -Force -Recurse -ErrorAction SilentlyContinue .\node_modules
           Remove-Item -Force -Recurse -ErrorAction SilentlyContinue .\package-lock.json
           npm install
-
-      - name: Check Tauri version
-        run: npx tauri --version
 
       - name: Build Tauri app
         run: npm run tauri build
@@ -51,5 +75,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: fangdai-exe
+          path: src-tauri/target/release/*.exe
+          if-no-files-found: error
           path: src-tauri/target/release/fangdai_sandbox.exe
           if-no-files-found: error
