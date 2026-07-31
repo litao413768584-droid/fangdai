@@ -22,6 +22,20 @@ jobs:
         with:
           targets: x86_64-pc-windows-msvc
 
+      - name: Create valid icon.ico
+        run: |
+          # 使用 PowerShell 生成一个有效的 64x64 图标
+          Add-Type -AssemblyName System.Drawing
+          $bmp = New-Object System.Drawing.Bitmap(64, 64)
+          $g = [System.Drawing.Graphics]::FromImage($bmp)
+          $g.Clear([System.Drawing.Color]::RoyalBlue)
+          $g.DrawString("房贷", (New-Object System.Drawing.Font("Arial",16)), [System.Drawing.Brushes]::White, 5, 20)
+          $icon = [System.Drawing.Icon]::FromHandle($bmp.GetHicon())
+          $fs = [System.IO.File]::Create("src-tauri/icons/icon.ico")
+          $icon.Save($fs)
+          $fs.Close()
+        shell: powershell
+
       - name: Install dependencies
         run: |
           Remove-Item -Force -Recurse -ErrorAction SilentlyContinue .\node_modules
