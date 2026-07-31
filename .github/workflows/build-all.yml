@@ -8,29 +8,32 @@ on:
 jobs:
   build:
     runs-on: windows-latest
-    
+
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '18'
-    
+
     - name: Setup Rust
       uses: dtolnay/rust-toolchain@stable
       with:
         targets: x86_64-pc-windows-msvc
-    
+
+    # 关键修复：使用 npm ci 进行干净安装
     - name: Clean install dependencies
       run: |
-        Remove-Item -Force -Recurse -ErrorAction SilentlyContinue .\package-lock.json
+        # 彻底删除可能残留的目录
         Remove-Item -Force -Recurse -ErrorAction SilentlyContinue .\node_modules
-        npm install
-    
+        Remove-Item -Force -Recurse -ErrorAction SilentlyContinue .\package-lock.json
+        # 运行 npm ci，它会严格依据 package-lock.json 安装，如果没有会自动生成
+        npm ci
+
     - name: Build Tauri app
       run: npm run tauri build
-    
+
     - name: Upload EXE
       uses: actions/upload-artifact@v4
       with:
