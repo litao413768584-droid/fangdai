@@ -21,6 +21,9 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-msvc
+    
+      - name: Check Tauri version
+       run: npx tauri --version
 
       - name: Create valid icon.ico
         run: |
