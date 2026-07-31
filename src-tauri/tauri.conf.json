@@ -1,37 +1,30 @@
 ﻿{
+  "identifier": "com.mortgage.fangdai",
+  "productName": "fangdai",
+  "version": "1.0.0",
   "build": {
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build",
-    "devPath": "http://localhost:1420",
-    "distDir": "../dist"
+    "devUrl": "http://localhost:1420",
+    "frontendDist": "../dist"
   },
-  "package": {
-    "productName": "fangdai",
-    "version": "1.0.0"
-  },
-  "tauri": {
-    "bundle": {
-      "active": true,
-      "identifier": "com.mortgage.fangdai",
-      "icon": ["icons/icon.ico"],
-      "targets": ["nsis"],
-      "windows": {
-        "webviewInstallMode": {
-          "type": "downloadBootstrapper"
-        }
-      }
-    },
+  "app": {
     "windows": [
       {
         "title": "房贷提前还款分析沙盒",
         "width": 1200,
         "height": 800,
-        "resizable": true,
-        "fullscreen": false
+        "resizable": true
       }
     ],
     "security": {
       "csp": null
     }
+  },
+  "bundle": {
+    "active": true,
+    "identifier": "com.mortgage.fangdai",
+    "icon": ["icons/icon.ico"],
+    "targets": ["nsis"]
   }
 }
