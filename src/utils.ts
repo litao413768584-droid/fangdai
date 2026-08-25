@@ -480,6 +480,9 @@ export function simulateMultiplePrepayments(
         principalPaid = remainingPrincipal / (totalMonths - m + 1);
       } else {
         principalPaid = currentMonthlyPayment - interestPaid;
+        if (principalPaid <= 0 && remainingPrincipal > 0) {
+          principalPaid = Math.min(remainingPrincipal, Math.max(1, currentMonthlyPayment * 0.1));
+        }
       }
     } else {
       principalPaid = currentMonthlyPrincipal;
@@ -586,5 +589,45 @@ export function simulateMultiplePrepayments(
     newDetails,
     prepayEvents: sortedEvents,
   };
+}
+
+/**
+ * 计算多期提前还款中，每一个事件执行前（当期正常月供扣减后、本次提前还款扣减前）的真实剩余待还本金
+ */
+export function getRemainingPrincipalBeforePrepayEvents(
+  originalSummary: LoanResultSummary,
+  amountTenThousand: number,
+  annualRate: number,
+  prepayEvents: PrepaymentEvent[]
+): Map<string, number> {
+  const result = new Map<string, number>();
+
+  // 按照时间先后顺序排序
+  const sortedEvents = [...prepayEvents].sort((a, b) => a.monthIndex - b.monthIndex);
+
+  for (let i = 0; i < sortedEvents.length; i++) {
+    const currentEvent = sortedEvents[i];
+    // 取得在当前事件之前发生的所有还款事件
+    const priorEvents = sortedEvents.slice(0, i);
+
+    // 运行只包含前序还款事件的模拟计算
+    const sim = simulateMultiplePrepayments(
+      originalSummary,
+      amountTenThousand,
+      annualRate,
+      priorEvents
+    );
+
+    // 获取当前事件目标月份在模拟后的月供详情
+    if (currentEvent.monthIndex > sim.newDetails.length) {
+      // 说明在当前事件发生前，贷款已被提前结清或期数已结束
+      result.set(currentEvent.id, 0);
+    } else {
+      const detail = sim.newDetails[currentEvent.monthIndex - 1];
+      result.set(currentEvent.id, detail ? detail.remainingPrincipal : 0);
+    }
+  }
+
+  return result;
 }
 

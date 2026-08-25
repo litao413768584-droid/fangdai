@@ -5,7 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import { LoanInput, RepaymentMethod, LoanResultSummary, PrepaymentEvent } from '../types';
-import { simulateMultiplePrepayments, PrepaymentSimulationResult } from '../utils';
+import { simulateMultiplePrepayments, getRemainingPrincipalBeforePrepayEvents, PrepaymentSimulationResult } from '../utils';
 import { 
   CalendarRange, 
   Sparkles, 
@@ -94,20 +94,18 @@ export function PrepaymentSandbox({
   const sortedEvents = [...prepayEvents].sort((a, b) => a.monthIndex - b.monthIndex);
   const firstPrepayMonth = sortedEvents[0] ? Math.min(sortedEvents[0].monthIndex, totalMonths) : totalMonths;
 
-  // 获取第一个还款节点对应的月份详情
-  const currentMonthDetail = originalDetails[firstPrepayMonth - 1] || {
-    cumulativePrincipal: 0,
-    cumulativeInterest: 0,
-    cumulativeTotal: 0,
-    remainingPrincipal: 0,
-  };
-
-  const remainingPrincipalBeforePrepay = currentMonthDetail.remainingPrincipal;
-
   // 累计提前还款的总金额 (万元)
   const totalExtraAmountWan = prepayEvents.reduce((sum, e) => sum + (e.prepayType === 'full' ? 0 : e.amountWan), 0);
 
   const activeStrategy = prepayEvents[0]?.strategy || 'reduce_term';
+
+  // 计算每个提前还款事件发生前（已计入该事件之前的所有还款事件）的精确剩余本金
+  const remainingPrincipalMap = getRemainingPrincipalBeforePrepayEvents(
+    currentSummary,
+    input.loanAmount,
+    input.annualRate,
+    prepayEvents
+  );
 
   // 进行提前还款模拟 (部分/全部)
   const simResultPortion = simulateMultiplePrepayments(
@@ -137,10 +135,9 @@ export function PrepaymentSandbox({
 
   const activeSimResult = activeMethod === RepaymentMethod.EQUAL_PORTION ? simResultPortion : simResultPrincipal;
 
-
   return (
     <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-xs mb-8">
-      {/* Tab 切换 */}
+      {/* 标题栏与还款方式 Tab 切换 */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4 mb-6">
         <div>
           <h3 className="font-semibold text-slate-800 dark:text-slate-200 text-base flex items-center gap-2">
@@ -177,63 +174,8 @@ export function PrepaymentSandbox({
         </div>
       </div>
 
-      {/* 核心提前还款节点统计：已还多少，剩余多少 */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-slate-50 dark:bg-slate-800/40 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
-          <span className="text-[10px] font-bold text-slate-400 block uppercase">
-            此时已还本金
-          </span>
-          <span className="text-lg font-mono font-black text-slate-700 dark:text-slate-300">
-            ¥{(currentMonthDetail.cumulativePrincipal / 10000).toFixed(2)}
-            <span className="text-xs font-normal text-slate-500 ml-0.5">万</span>
-          </span>
-          <span className="text-[10px] text-slate-500 block mt-0.5">
-            {Math.round(currentMonthDetail.cumulativePrincipal).toLocaleString()} 元
-          </span>
-        </div>
-
-        <div className="bg-slate-50 dark:bg-slate-800/40 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
-          <span className="text-[10px] font-bold text-slate-400 block uppercase">
-            此时已还利息 (银行纯利)
-          </span>
-          <span className="text-lg font-mono font-black text-slate-700 dark:text-slate-300">
-            ¥{(currentMonthDetail.cumulativeInterest / 10000).toFixed(2)}
-            <span className="text-xs font-normal text-slate-500 ml-0.5">万</span>
-          </span>
-          <span className="text-[10px] text-slate-500 block mt-0.5">
-            {Math.round(currentMonthDetail.cumulativeInterest).toLocaleString()} 元
-          </span>
-        </div>
-
-        <div className="bg-indigo-500/[0.04] dark:bg-indigo-500/[0.08] p-4 rounded-xl border border-indigo-500/10">
-          <span className="text-[10px] font-bold text-indigo-500 dark:text-indigo-400 block uppercase">
-            此时累计已还总额 (本+息)
-          </span>
-          <span className="text-lg font-mono font-black text-indigo-700 dark:text-indigo-300">
-            ¥{(currentMonthDetail.cumulativeTotal / 10000).toFixed(2)}
-            <span className="text-xs font-normal text-indigo-500 ml-0.5">万</span>
-          </span>
-          <span className="text-[10px] text-indigo-500/80 block mt-0.5">
-            {Math.round(currentMonthDetail.cumulativeTotal).toLocaleString()} 元
-          </span>
-        </div>
-
-        <div className="bg-amber-500/[0.04] dark:bg-amber-500/[0.08] p-4 rounded-xl border border-amber-500/15">
-          <span className="text-[10px] font-black text-amber-600 dark:text-amber-400 block uppercase">
-            此时剩余本金 (待还本金)
-          </span>
-          <span className="text-lg font-mono font-black text-amber-700 dark:text-amber-300">
-            ¥{(remainingPrincipalBeforePrepay / 10000).toFixed(2)}
-            <span className="text-xs font-normal text-amber-600 ml-0.5">万</span>
-          </span>
-          <span className="text-[10px] text-amber-600/80 block mt-0.5">
-            {Math.round(remainingPrincipalBeforePrepay).toLocaleString()} 元
-          </span>
-        </div>
-      </div>
-
       {/* 提前还贷沙盒操作台 */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 border-t border-slate-100 dark:border-slate-800 pt-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* 控制面板 */}
         <div className="lg:col-span-5 space-y-4">
           {/* 模式切换器 */}
@@ -370,8 +312,9 @@ export function PrepaymentSandbox({
 
                   <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1">
                     {prepayEvents.map((event, idx) => {
-                      const targetMonthDetail = originalDetails[event.monthIndex - 1] || originalDetails[originalDetails.length - 1] || { remainingPrincipal: 0 };
-                      const remPrincipalWan = Math.floor(targetMonthDetail.remainingPrincipal / 10000);
+                      const remPrincipal = remainingPrincipalMap.get(event.id) ?? (originalDetails[event.monthIndex - 1]?.remainingPrincipal || 0);
+                      const remPrincipalWan = Math.max(0, Math.floor(remPrincipal / 10000));
+                      const remPrincipalYuan = Math.max(0, Math.round(remPrincipal));
 
                       return (
                         <div key={event.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 space-y-3.5 shadow-xs relative">
@@ -432,8 +375,9 @@ export function PrepaymentSandbox({
                             </div>
                           </div>
                           
-                          <div className="text-[10px] text-slate-400 font-medium">
-                            将在还贷的第 <span className="font-bold font-mono text-indigo-600 dark:text-indigo-400">{event.monthIndex}</span> 期末月供正常扣减后执行提前还贷。当前该期末剩余待还本金约：<strong className="text-slate-700 dark:text-slate-300 font-bold">¥{remPrincipalWan} 万元</strong>。
+                          <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+                            将在还贷的第 <span className="font-bold font-mono text-indigo-600 dark:text-indigo-400">{event.monthIndex}</span> 期末月供正常扣减后执行提前还贷。当前该期末剩余待还本金约：<strong className="text-slate-800 dark:text-slate-200 font-bold font-mono">¥{(remPrincipal / 10000).toFixed(2)} 万元</strong>
+                            {idx > 0 && <span className="text-indigo-600 dark:text-indigo-400 ml-1 font-bold text-[9.5px] bg-indigo-50 dark:bg-indigo-950/40 px-1 py-0.5 rounded-sm">已计入前期还贷扣减</span>}。
                           </div>
 
                           {/* 提前还款金额与策略 (如果是部分提前还款) */}
@@ -489,7 +433,7 @@ export function PrepaymentSandbox({
                             </div>
                           ) : (
                             <div className="text-[11px] text-slate-650 dark:text-slate-400 leading-relaxed mt-3 pt-3 border-t border-slate-100 dark:border-slate-800/50 bg-amber-50/10 p-2 rounded-lg">
-                              📢 <strong>一次性全额结清</strong>将在上述节点直接清偿该月除正常月供外的全部剩余本金（约 <strong className="text-amber-600 dark:text-amber-400">¥{targetMonthDetail.remainingPrincipal.toLocaleString()} 元</strong>），此后不再产生任何后续贷款，全额省去剩余年份的所有利息。
+                              📢 <strong>一次性全额结清</strong>将在上述节点直接清偿该月除正常月供外的全部剩余本金（约 <strong className="text-amber-600 dark:text-amber-400">¥{remPrincipalYuan.toLocaleString()} 元</strong>），此后不再产生任何后续贷款，全额省去剩余年份的所有利息。
                             </div>
                           )}
                         </div>
@@ -688,8 +632,9 @@ export function PrepaymentSandbox({
               {/* Display multiple events details */}
               <div className="space-y-4 max-h-[350px] overflow-y-auto pr-1">
                 {prepayEvents.map((event, idx) => {
-                  const targetMonthDetail = originalDetails[event.monthIndex - 1] || originalDetails[originalDetails.length - 1] || { remainingPrincipal: 0 };
-                  const remPrincipalWan = Math.floor(targetMonthDetail.remainingPrincipal / 10000);
+                  const remPrincipal = remainingPrincipalMap.get(event.id) ?? (originalDetails[event.monthIndex - 1]?.remainingPrincipal || 0);
+                  const remPrincipalWan = Math.max(0, Math.floor(remPrincipal / 10000));
+                  const remPrincipalYuan = Math.max(0, Math.round(remPrincipal));
 
                   return (
                     <div key={event.id} className="bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-750 rounded-xl p-3 space-y-2.5 relative">
@@ -801,7 +746,7 @@ export function PrepaymentSandbox({
                         </div>
                       ) : (
                         <div className="text-[10px] text-slate-500 leading-relaxed bg-white dark:bg-slate-900/55 p-2 rounded-lg">
-                          一次性全额还清，在该点直接偿还剩余全部本金 ¥{targetMonthDetail.remainingPrincipal.toLocaleString()} 元。
+                          一次性全额还清，在该点直接偿还剩余全部本金 ¥{remPrincipalYuan.toLocaleString()} 元。
                         </div>
                       )}
                     </div>

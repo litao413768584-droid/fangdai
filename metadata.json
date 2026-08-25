@@ -1,6 +1,6 @@
 {
   "name": "房贷计算与提前还款对比工具",
-  "description": "支持等额本金、等额本息两种还款方式的全面对比。自动计算每月月供详情（本金与利息细分），提供提前还款试算功能，直观展示已还本息与剩余本金，并对比总还款额及总利息支出。",
+  "description": "支持等额本金与等额本息还款方式深度对比、多贷款方案保存与横向矩阵对比、提前还款沙盒推演与缩期减供明细测算。",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

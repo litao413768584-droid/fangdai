@@ -5,7 +5,7 @@
 
 import { useState } from 'react';
 import { MonthDetail, RepaymentMethod, PrepaymentEvent } from '../types';
-import { Search, Filter, ArrowDown, Sparkles, FileSpreadsheet, Printer } from 'lucide-react';
+import { Search, Filter, FileSpreadsheet, Printer, Milestone, CheckCircle2 } from 'lucide-react';
 
 interface AmortizationTableProps {
   originalDetails: MonthDetail[];
@@ -37,16 +37,42 @@ export function AmortizationTable({
 
   // 导出 CSV (Excel)
   const handleExportCSV = () => {
-    const headers = ['期数', '时间节点', '月供金额(元)', '偿还本金(元)', '偿还利息(元)', '剩余本金(元)', '累计还款总额(元)'];
-    const rows = activeDetails.map(item => [
-      item.monthIndex,
-      `第${item.yearNumber}年第${item.monthInYear}月`,
-      item.monthlyPayment,
-      item.principalPaid,
-      item.interestPaid,
-      item.remainingPrincipal,
-      item.cumulativeTotal
-    ]);
+    const headers = [
+      '期数',
+      '时间节点',
+      '月供金额(元)',
+      '偿还本金(元)',
+      '偿还利息(元)',
+      '剩余本金(元)',
+      '已还本金(元)',
+      '已还利息(元)',
+      '累计还款总额(元)',
+      '节点说明'
+    ];
+    const rows = activeDetails.map(item => {
+      const prepayAtThisMonth = planMode === 'adjusted' ? prepayEvents.find(e => e.monthIndex === item.monthIndex) : null;
+      let note = '';
+      if (prepayAtThisMonth) {
+        note = prepayAtThisMonth.prepayType === 'full' 
+          ? '提前还贷(一次性全额结清)' 
+          : `提前还贷(额外还本¥${prepayAtThisMonth.amountWan}万)`;
+      } else if (item.monthIndex === activeDetails.length && item.remainingPrincipal === 0) {
+        note = '贷款结清期';
+      }
+
+      return [
+        item.monthIndex,
+        `第${item.yearNumber}年第${item.monthInYear}月`,
+        item.monthlyPayment,
+        item.principalPaid,
+        item.interestPaid,
+        item.remainingPrincipal,
+        item.cumulativePrincipal,
+        item.cumulativeInterest,
+        item.cumulativeTotal,
+        note
+      ];
+    });
 
     // 使用 \ufeff (UTF-8 BOM) 避免在 Excel 中打开时中文字符乱码
     const csvContent = '\ufeff' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
@@ -69,7 +95,6 @@ export function AmortizationTable({
 
   // 打印 / 导出 PDF 
   const handlePrint = () => {
-    // 创建隐藏的 iframe 用于托管高品质打印视口
     const iframe = document.createElement('iframe');
     iframe.style.position = 'fixed';
     iframe.style.right = '0';
@@ -91,12 +116,14 @@ export function AmortizationTable({
       return `
         <tr style="${isPrepayPoint ? 'background-color: #fef3c7; font-weight: bold; border-top: 2px solid #f59e0b; border-bottom: 2px solid #f59e0b;' : ''}">
           <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0; font-family: monospace; text-align: center;">${item.monthIndex}</td>
-          <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0;">第 ${item.yearNumber} 年第 ${item.monthInYear} 月${isPrepayPoint ? ' [提前还贷点]' : ''}</td>
+          <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0;">第 ${item.yearNumber} 年第 ${item.monthInYear} 月${isPrepayPoint ? ` [提前还贷: ¥${prepayAtThisMonth?.prepayType === 'full' ? '结清' : prepayAtThisMonth?.amountWan + '万'}]` : ''}</td>
           <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0; font-family: monospace; text-align: right;">¥${item.monthlyPayment.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
           <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0; font-family: monospace; text-align: right; color: #059669;">¥${item.principalPaid.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
           <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0; font-family: monospace; text-align: right; color: #ea580c;">¥${item.interestPaid.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-          <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0; font-family: monospace; text-align: right;">¥${item.remainingPrincipal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-          <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0; font-family: monospace; text-align: right; color: #475569;">¥${item.cumulativeTotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+          <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0; font-family: monospace; text-align: right; color: #475569;">¥${item.remainingPrincipal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+          <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0; font-family: monospace; text-align: right; color: #059669;">¥${item.cumulativePrincipal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+          <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0; font-family: monospace; text-align: right; color: #ea580c;">¥${item.cumulativeInterest.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+          <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0; font-family: monospace; text-align: right; font-weight: bold; color: #2563eb;">¥${item.cumulativeTotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
         </tr>
       `;
     }).join('');
@@ -111,18 +138,18 @@ export function AmortizationTable({
           body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             color: #1e293b;
-            margin: 40px;
-            font-size: 11px;
-            line-height: 1.4;
+            margin: 30px;
+            font-size: 10px;
+            line-height: 1.35;
           }
           .header {
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 16px;
             border-bottom: 3px double #cbd5e1;
-            padding-bottom: 12px;
+            padding-bottom: 10px;
           }
           .title {
-            font-size: 18px;
+            font-size: 17px;
             font-weight: 800;
             margin: 0;
             color: #0f172a;
@@ -130,18 +157,18 @@ export function AmortizationTable({
           .subtitle {
             font-size: 10px;
             color: #64748b;
-            margin: 5px 0 0 0;
+            margin: 4px 0 0 0;
             letter-spacing: 0.5px;
           }
           .meta-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
-            margin-bottom: 20px;
+            gap: 10px;
+            margin-bottom: 16px;
             background: #f8fafc;
             border: 1px solid #e2e8f0;
             border-radius: 6px;
-            padding: 12px;
+            padding: 10px;
           }
           .meta-item {
             display: flex;
@@ -155,7 +182,7 @@ export function AmortizationTable({
             margin-bottom: 2px;
           }
           .meta-value {
-            font-size: 12px;
+            font-size: 11px;
             font-weight: bold;
             color: #0f172a;
           }
@@ -169,7 +196,7 @@ export function AmortizationTable({
             color: #475569;
             font-weight: bold;
             text-align: left;
-            padding: 8px;
+            padding: 6px 8px;
             border-bottom: 2px solid #cbd5e1;
           }
           tr {
@@ -177,7 +204,7 @@ export function AmortizationTable({
           }
           @media print {
             body {
-              margin: 15px;
+              margin: 10px;
             }
           }
         </style>
@@ -206,21 +233,21 @@ export function AmortizationTable({
             <span class="meta-value">${totalMonths} 期 (${(totalMonths / 12).toFixed(1)} 年)</span>
           </div>
           <div class="meta-item">
-            <span class="meta-label">最终累计偿还总额 (本+息)</span>
-            <span class="meta-value" style="color: #0f172a;">¥${finalItem ? finalItem.cumulativeTotal.toLocaleString() : '0'} 元</span>
+            <span class="meta-label">最终支付利息总额</span>
+            <span class="meta-value" style="color: #ea580c;">¥${finalItem ? finalItem.cumulativeInterest.toLocaleString() : '0'} 元</span>
           </div>
           <div class="meta-item">
-            <span class="meta-label">最终支付净利息总额</span>
-            <span class="meta-value" style="color: #ea580c;">¥${finalItem ? finalItem.cumulativeInterest.toLocaleString() : '0'} 元</span>
+            <span class="meta-label">关键还贷事件</span>
+            <span class="meta-value" style="color: #059669;">${planMode === 'adjusted' ? `${prepayEvents.length} 个提前还款节点` : '按期正常还款'}</span>
           </div>
         </div>
 
         ${planMode === 'adjusted' && prepayEvents.length > 0 ? `
-          <div style="background-color: #fffbeb; border: 1px solid #fde68a; border-radius: 4px; padding: 10px; margin-bottom: 15px; font-size: 10px; line-height: 1.5;">
-            <strong style="color: #b45309; font-size: 11px;">💡 提前还贷调整记录 (共 ${prepayEvents.length} 期还款)：</strong>
-            <ul style="margin: 5px 0 0 14px; padding: 0; color: #78350f;">
+          <div style="background-color: #fffbeb; border: 1px solid #fde68a; border-radius: 4px; padding: 8px; margin-bottom: 12px; font-size: 9.5px; line-height: 1.4;">
+            <strong style="color: #b45309; font-size: 10.5px;">💡 提前还贷调整记录 (共 ${prepayEvents.length} 期还款)：</strong>
+            <ul style="margin: 4px 0 0 14px; padding: 0; color: #78350f;">
               ${prepayEvents.map(e => `
-                <li><strong>第 ${e.monthIndex} 期</strong>（第 ${e.yearNumber} 年第 ${e.monthInYear} 月）已正常月供扣款后，额外提前还本金 <strong>¥${e.prepayType === 'full' ? '一次性结清' : `${e.amountWan} 万元`}</strong>。还款后调整策略：<strong>${e.strategy === 'reduce_term' ? '缩短还款期限' : '减少每月月供'}</strong>。</li>
+                <li><strong>第 ${e.monthIndex} 期</strong>（第 ${e.yearNumber} 年第 ${e.monthInYear} 月）额外提前还本金 <strong>¥${e.prepayType === 'full' ? '一次性结清' : `${e.amountWan} 万元`}</strong>。调整策略：<strong>${e.strategy === 'reduce_term' ? '缩短还款期限' : '减少每月月供'}</strong>。</li>
               `).join('')}
             </ul>
           </div>
@@ -229,13 +256,15 @@ export function AmortizationTable({
         <table>
           <thead>
             <tr>
-              <th style="width: 8%; text-align: center;">期数</th>
-              <th style="width: 18%;">时间节点</th>
-              <th style="width: 15%; text-align: right;">月供金额</th>
-              <th style="width: 15%; text-align: right;">偿还本金</th>
-              <th style="width: 15%; text-align: right;">偿还利息</th>
-              <th style="width: 15%; text-align: right;">剩余本金</th>
-              <th style="width: 15%; text-align: right;">累计已还</th>
+              <th style="width: 7%; text-align: center;">期数</th>
+              <th style="width: 17%;">时间节点</th>
+              <th style="width: 12%; text-align: right;">月供金额</th>
+              <th style="width: 12%; text-align: right;">偿还本金</th>
+              <th style="width: 12%; text-align: right;">偿还利息</th>
+              <th style="width: 12%; text-align: right;">剩余本金</th>
+              <th style="width: 12%; text-align: right;">已还本金</th>
+              <th style="width: 12%; text-align: right;">已还利息</th>
+              <th style="width: 14%; text-align: right;">累计总额</th>
             </tr>
           </thead>
           <tbody>
@@ -280,10 +309,10 @@ export function AmortizationTable({
         <div>
           <h3 className="font-semibold text-slate-800 dark:text-slate-200 text-base flex items-center gap-2">
             <Filter className="w-5 h-5 text-blue-600" />
-            第三步：每月还款明细单（包含本息细分）
+            第三步：每月还款明细单（包含本息与累计账目）
           </h3>
           <p className="text-xs text-slate-500 mt-0.5">
-            详细计算了贷款周期内每个月的应还本金、利息与剩余本金。支持快速筛选和方案对比。
+            详细计算了贷款周期内每个月的应还本金、利息、剩余本金及历史累计还款数据。
           </p>
         </div>
 
@@ -336,7 +365,7 @@ export function AmortizationTable({
           <div className="flex bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200/50 dark:border-slate-700/50">
             <button
               onClick={() => setPlanMode('adjusted')}
-              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
                 planMode === 'adjusted'
                   ? 'bg-blue-600 text-white shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
@@ -346,7 +375,7 @@ export function AmortizationTable({
             </button>
             <button
               onClick={() => setPlanMode('original')}
-              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
                 planMode === 'original'
                   ? 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-xs'
                   : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
@@ -357,6 +386,87 @@ export function AmortizationTable({
           </div>
         </div>
       </div>
+
+      {/* 关键还款节点速查卡片 (Key Milestones) */}
+      {planMode === 'adjusted' && prepayEvents.length > 0 && (
+        <div className="mb-5 bg-gradient-to-r from-amber-500/[0.06] via-indigo-500/[0.04] to-emerald-500/[0.06] dark:from-amber-500/[0.1] dark:via-indigo-500/[0.08] dark:to-emerald-500/[0.1] border border-amber-500/20 dark:border-amber-500/30 rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Milestone className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+            <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">
+              关键还贷节点速查（包含 {prepayEvents.length} 个提前还款节点）
+            </h4>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+            {prepayEvents.map((evt, idx) => {
+              const eventMonthDetail = activeDetails.find(d => d.monthIndex === evt.monthIndex);
+              const nextMonthDetail = activeDetails.find(d => d.monthIndex === evt.monthIndex + 1);
+
+              return (
+                <div
+                  key={evt.id || idx}
+                  className="bg-white/85 dark:bg-slate-800/80 backdrop-blur-xs border border-amber-500/20 rounded-lg p-2.5 space-y-1 text-xs shadow-2xs"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-amber-700 dark:text-amber-400 text-[11px] flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                      还款节点 {idx + 1}: 第 {evt.monthIndex} 期
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-mono">
+                      (第{evt.yearNumber}年第{evt.monthInYear}月)
+                    </span>
+                  </div>
+
+                  <div className="flex items-baseline justify-between text-[11px]">
+                    <span className="text-slate-500">额外还本金:</span>
+                    <span className="font-bold font-mono text-indigo-600 dark:text-indigo-400">
+                      {evt.prepayType === 'full' ? '一次性全额结清' : `¥${evt.amountWan} 万元`}
+                    </span>
+                  </div>
+
+                  <div className="flex items-baseline justify-between text-[11px]">
+                    <span className="text-slate-500">还后剩余本金:</span>
+                    <span className="font-bold font-mono text-slate-700 dark:text-slate-200">
+                      ¥{eventMonthDetail ? (eventMonthDetail.remainingPrincipal / 10000).toFixed(2) : 0} 万元
+                    </span>
+                  </div>
+
+                  {nextMonthDetail && evt.prepayType !== 'full' && (
+                    <div className="flex items-baseline justify-between text-[10.5px] pt-1 border-t border-slate-100 dark:border-slate-700/50">
+                      <span className="text-slate-400">下期起月供:</span>
+                      <span className="font-bold font-mono text-emerald-600 dark:text-emerald-400">
+                        ¥{nextMonthDetail.monthlyPayment.toLocaleString()} /月
+                      </span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* 最终结清节点 */}
+            <div className="bg-white/85 dark:bg-slate-800/80 backdrop-blur-xs border border-emerald-500/20 rounded-lg p-2.5 space-y-1 text-xs shadow-2xs flex flex-col justify-between">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-emerald-700 dark:text-emerald-400 text-[11px] flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                  贷款最终结清节点
+                </span>
+                <span className="text-[10px] text-slate-400 font-mono">
+                  第 {totalMonths} 期
+                </span>
+              </div>
+
+              <div className="text-[11px] text-slate-600 dark:text-slate-300">
+                本期偿还后剩余本金归零 (¥0.00)。
+              </div>
+
+              <div className="text-[10.5px] font-bold text-emerald-600 dark:text-emerald-400 pt-1 border-t border-slate-100 dark:border-slate-700/50 flex justify-between">
+                <span>实际总还贷年限:</span>
+                <span>{(totalMonths / 12).toFixed(1)} 年</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 检索与过滤条 */}
       <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 mb-4">
@@ -381,7 +491,7 @@ export function AmortizationTable({
         <div className="sm:col-span-5 flex flex-wrap gap-1.5 items-center">
           <button
             onClick={() => setFilterYear(0)}
-            className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
+            className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer ${
               filterYear === 0
                 ? 'bg-slate-900 text-white dark:bg-slate-700'
                 : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200/50 dark:border-slate-700/50 hover:bg-slate-100'
@@ -392,7 +502,7 @@ export function AmortizationTable({
           {maxYearNum >= 5 && (
             <button
               onClick={() => setFilterYear(5)}
-              className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
+              className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer ${
                 filterYear === 5
                   ? 'bg-slate-900 text-white dark:bg-slate-700'
                   : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200/50 dark:border-slate-700/50 hover:bg-slate-100'
@@ -404,7 +514,7 @@ export function AmortizationTable({
           {maxYearNum >= 10 && (
             <button
               onClick={() => setFilterYear(10)}
-              className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
+              className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all cursor-pointer ${
                 filterYear === 10
                   ? 'bg-slate-900 text-white dark:bg-slate-700'
                   : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200/50 dark:border-slate-700/50 hover:bg-slate-100'
@@ -436,65 +546,55 @@ export function AmortizationTable({
         </div>
       </div>
 
-      {/* 提前还贷事件高亮说明条 */}
-      {planMode === 'adjusted' && prepayEvents.length > 0 && (
-        <div className="mb-4 bg-amber-500/[0.04] dark:bg-amber-500/[0.08] border border-amber-500/15 p-3 rounded-xl flex items-center justify-between text-xs gap-4">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 bg-amber-500 rounded-full animate-ping shrink-0"></span>
-            <span className="text-slate-700 dark:text-slate-300">
-              提示：下方明细中高亮行（当前试算计划包含 <strong className="text-amber-600 font-bold">{prepayEvents.length} 个</strong> 提前还款点）代表提前还本期。在该期正常扣款完毕后，即进行额外还贷。
-            </span>
-          </div>
-          <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold bg-amber-500/10 px-2 py-0.5 rounded-md">
-            当前处于试算预览
-          </span>
-        </div>
-      )}
-
       {/* 表格容器 */}
       <div className="border border-slate-100 dark:border-slate-800 rounded-xl overflow-hidden shadow-xs">
         <div className="max-h-120 overflow-y-auto relative custom-scrollbar">
-          <table className="w-full text-left text-xs border-collapse">
+          <table className="w-full text-left text-xs border-collapse min-w-[720px]">
             <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-bold sticky top-0 z-10 border-b border-slate-100 dark:border-slate-800">
               <tr>
-                <th className="py-3 px-4 w-16">期数</th>
-                <th className="py-3 px-4 w-28">时间节点</th>
-                <th className="py-3 px-4 font-black text-slate-700 dark:text-slate-300">
+                <th className="py-3 px-3 w-14 text-center">期数</th>
+                <th className="py-3 px-3 w-28">时间节点</th>
+                <th className="py-3 px-3 font-black text-slate-700 dark:text-slate-300">
                   月供金额 (元)
                 </th>
-                <th className="py-3 px-4 text-emerald-600 dark:text-emerald-400">偿还本金 (元)</th>
-                <th className="py-3 px-4 text-orange-500 dark:text-orange-400">偿还利息 (元)</th>
-                <th className="py-3 px-4">剩余本金 (元)</th>
-                <th className="py-3 px-4 text-slate-400 font-normal">累计还款 (元)</th>
+                <th className="py-3 px-3 text-emerald-600 dark:text-emerald-400">偿还本金 (元)</th>
+                <th className="py-3 px-3 text-orange-500 dark:text-orange-400">偿还利息 (元)</th>
+                <th className="py-3 px-3 font-bold text-slate-700 dark:text-slate-200">剩余本金 (元)</th>
+                <th className="py-3 px-3 text-emerald-700 dark:text-emerald-300/90 font-semibold">已还本金 (元)</th>
+                <th className="py-3 px-3 text-orange-700 dark:text-orange-300/90 font-semibold">已还利息 (元)</th>
+                <th className="py-3 px-3 text-blue-600 dark:text-blue-400 font-bold">累计总额 (元)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
               {filteredDetails.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-slate-400">
+                  <td colSpan={9} className="py-8 text-center text-slate-400">
                     未检索到符合条件的月份明细，请调整年份或搜索词。
                   </td>
                 </tr>
               ) : (
                 filteredDetails.map((item) => {
-                  const prepayAtThisMonth = planMode === 'adjusted' && prepayEvents.find(e => e.monthIndex === item.monthIndex);
+                  const prepayAtThisMonth = planMode === 'adjusted' ? prepayEvents.find(e => e.monthIndex === item.monthIndex) : null;
                   const isPrepayPoint = !!prepayAtThisMonth;
+                  const isPayoffPoint = item.monthIndex === totalMonths && item.remainingPrincipal === 0;
 
                   return (
                     <tr
                       key={item.monthIndex}
                       className={`hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors ${
                         isPrepayPoint
-                          ? 'bg-amber-500/[0.07] hover:bg-amber-500/[0.1] dark:bg-amber-500/[0.08] dark:hover:bg-amber-500/[0.12] border-y-2 border-amber-500/20'
+                          ? 'bg-amber-500/[0.08] hover:bg-amber-500/[0.12] dark:bg-amber-500/[0.1] dark:hover:bg-amber-500/[0.14] border-y-2 border-amber-500/30'
+                          : isPayoffPoint
+                          ? 'bg-emerald-500/[0.05] dark:bg-emerald-500/[0.08]'
                           : ''
                       }`}
                     >
-                      <td className="py-3 px-4 font-mono font-bold text-slate-400">
+                      <td className="py-3 px-3 font-mono font-bold text-slate-400 text-center">
                         {item.monthIndex}
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-3">
                         <div className="flex flex-col">
-                          <span className="text-slate-700 dark:text-slate-200">
+                          <span className="text-slate-700 dark:text-slate-200 font-medium">
                             第 {item.yearNumber} 年
                           </span>
                           <span className="text-[10px] text-slate-400">
@@ -502,28 +602,39 @@ export function AmortizationTable({
                           </span>
                         </div>
                       </td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-1.5">
+                      <td className="py-3 px-3">
+                        <div className="flex flex-wrap items-center gap-1.5">
                           <span className="font-mono font-black text-slate-800 dark:text-slate-100">
                             ¥{item.monthlyPayment.toLocaleString()}
                           </span>
                           {isPrepayPoint && prepayAtThisMonth && (
                             <span className="bg-amber-500 text-white font-bold text-[9px] px-1.5 py-0.5 rounded-sm shrink-0 shadow-xs">
-                              提前还 {prepayAtThisMonth.prepayType === 'full' ? '一次结清' : `${prepayAtThisMonth.amountWan}万`}
+                              {prepayAtThisMonth.prepayType === 'full' ? '⚡ 提前结清' : `⚡ 提前还本 ¥${prepayAtThisMonth.amountWan}万`}
+                            </span>
+                          )}
+                          {isPayoffPoint && !isPrepayPoint && (
+                            <span className="bg-emerald-600 text-white font-bold text-[9px] px-1.5 py-0.5 rounded-sm shrink-0 shadow-xs">
+                              🏁 贷款结清
                             </span>
                           )}
                         </div>
                       </td>
-                      <td className="py-3 px-4 font-mono text-emerald-600 dark:text-emerald-400">
+                      <td className="py-3 px-3 font-mono text-emerald-600 dark:text-emerald-400">
                         ¥{item.principalPaid.toLocaleString()}
                       </td>
-                      <td className="py-3 px-4 font-mono text-orange-500 dark:text-orange-400">
+                      <td className="py-3 px-3 font-mono text-orange-500 dark:text-orange-400">
                         ¥{item.interestPaid.toLocaleString()}
                       </td>
-                      <td className="py-3 px-4 font-mono text-slate-600 dark:text-slate-300">
+                      <td className="py-3 px-3 font-mono font-semibold text-slate-700 dark:text-slate-200">
                         ¥{item.remainingPrincipal.toLocaleString()}
                       </td>
-                      <td className="py-3 px-4 font-mono text-slate-400 text-[11px]">
+                      <td className="py-3 px-3 font-mono text-emerald-700/80 dark:text-emerald-400/80">
+                        ¥{item.cumulativePrincipal.toLocaleString()}
+                      </td>
+                      <td className="py-3 px-3 font-mono text-orange-700/80 dark:text-orange-400/80">
+                        ¥{item.cumulativeInterest.toLocaleString()}
+                      </td>
+                      <td className="py-3 px-3 font-mono font-bold text-blue-600 dark:text-blue-400">
                         ¥{item.cumulativeTotal.toLocaleString()}
                       </td>
                     </tr>
@@ -544,13 +655,13 @@ export function AmortizationTable({
           </span>
         </div>
         <div>
-          <span className="text-slate-400">明细表中展示的总期数:</span>
+          <span className="text-slate-400">计划总还款期数:</span>
           <span className="font-bold text-slate-700 dark:text-slate-200 block mt-0.5 font-mono">
             {totalMonths} 期 ({Math.round(totalMonths / 12 * 10) / 10} 年)
           </span>
         </div>
         <div>
-          <span className="text-slate-400">明细最终总利息支出:</span>
+          <span className="text-slate-400">最终支付利息总额:</span>
           <span className="font-bold text-orange-500 block mt-0.5 font-mono">
             ¥{activeDetails.length > 0 ? activeDetails[activeDetails.length - 1].cumulativeInterest.toLocaleString() : 0} 元
           </span>

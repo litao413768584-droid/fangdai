@@ -4,14 +4,23 @@
  */
 
 import { LoanInput } from '../types';
-import { HelpCircle, Percent, Calendar, Landmark, Info } from 'lucide-react';
+import { HelpCircle, Percent, Calendar, Landmark, Info, BookmarkPlus, FolderKanban } from 'lucide-react';
 
 interface LoanInputFormProps {
   input: LoanInput;
   onChange: (newInput: LoanInput) => void;
+  onSavePlanClick?: () => void;
+  onOpenDrawerClick?: () => void;
+  savedPlansCount?: number;
 }
 
-export function LoanInputForm({ input, onChange }: LoanInputFormProps) {
+export function LoanInputForm({
+  input,
+  onChange,
+  onSavePlanClick,
+  onOpenDrawerClick,
+  savedPlansCount = 0,
+}: LoanInputFormProps) {
   const handleAmountChange = (val: number) => {
     // 限制合理范围
     const cleanVal = Math.max(1, Math.min(10000, val));
@@ -68,10 +77,36 @@ export function LoanInputForm({ input, onChange }: LoanInputFormProps) {
 
   return (
     <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-xs mb-8">
-      <h3 className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2 mb-6 border-b border-slate-100 dark:border-slate-800 pb-3">
-        <Landmark className="w-5 h-5 text-blue-600" />
-        第一步：设置贷款基础配置信息
-      </h3>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 border-b border-slate-100 dark:border-slate-800 pb-3">
+        <h3 className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+          <Landmark className="w-5 h-5 text-blue-600" />
+          第一步：设置贷款基础配置信息
+        </h3>
+
+        <div className="flex items-center gap-2">
+          {onSavePlanClick && (
+            <button
+              onClick={onSavePlanClick}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/50 dark:hover:bg-blue-900/60 text-blue-600 dark:text-blue-300 rounded-xl text-xs font-bold border border-blue-200/60 dark:border-blue-800/60 transition-all cursor-pointer shadow-2xs active:scale-95"
+              title="将当前配置存入方案库"
+            >
+              <BookmarkPlus className="w-3.5 h-3.5" />
+              <span>保存为方案</span>
+            </button>
+          )}
+
+          {onOpenDrawerClick && (
+            <button
+              onClick={onOpenDrawerClick}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-semibold border border-slate-200/60 dark:border-slate-700/60 transition-all cursor-pointer"
+              title="查看已保存的全部方案"
+            >
+              <FolderKanban className="w-3.5 h-3.5 text-slate-500" />
+              <span>方案库 ({savedPlansCount})</span>
+            </button>
+          )}
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {/* 1. 贷款金额 */}

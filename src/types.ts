@@ -66,3 +66,15 @@ export interface PrepaymentEvent {
   strategy: 'reduce_term' | 'reduce_payment'; // 还本后的策略
 }
 
+export type PlanColorTag = 'blue' | 'emerald' | 'indigo' | 'amber' | 'rose' | 'purple';
+
+export interface SavedPlan {
+  id: string;
+  name: string;
+  createdAt: number;
+  updatedAt?: number;
+  note?: string;
+  colorTag?: PlanColorTag;
+  input: LoanInput;
+}
+

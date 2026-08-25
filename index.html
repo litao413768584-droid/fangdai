@@ -8,20 +8,24 @@
     <link rel="manifest" href="/manifest.json" />
     <link rel="apple-touch-icon" href="/icon-192.jpg" />
     <script>
+      // 强制注销并清理旧的 Service Worker 和缓存，防止分享链接或历史缓存空白
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
-            .then((reg) => {
-              console.log('ServiceWorker registered successfully with scope: ', reg.scope);
-            })
-            .catch((err) => {
-              console.error('ServiceWorker registration failed: ', err);
-            });
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          for (let registration of registrations) {
+            registration.unregister();
+          }
+        });
+      }
+      if ('caches' in window) {
+        caches.keys().then(function(names) {
+          for (let name of names) {
+            caches.delete(name);
+          }
         });
       }
     </script>
   </head>
-  <body class="bg-slate-50 dark:bg-slate-955 antialiased transition-colors duration-300">
+  <body class="bg-slate-50 dark:bg-slate-950 antialiased transition-colors duration-300">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
