@@ -1,6 +1,0 @@
-{
-  "appId": "com.mortgage.fangdai",
-  "appName": "房贷提前还款计算器",
-  "webDir": "dist",
-  "bundledWebRuntime": false
-}

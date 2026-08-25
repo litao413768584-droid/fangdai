@@ -602,43 +602,7 @@ export function ComparisonCards({ comparison, loanInput }: ComparisonCardsProps)
         </div>
       </div>
 
-      {/* 省钱卡片 */}
-      {interestSavedByPrincipal > 0 && (
-        <div className="relative overflow-hidden bg-linear-to-r from-blue-500 via-indigo-500 to-emerald-500 dark:from-blue-600/80 dark:via-indigo-600/80 dark:to-emerald-600/80 rounded-2xl p-6 text-white shadow-md flex flex-col sm:flex-row items-center justify-between gap-4">
-          {/* 背景高光圈 */}
-          <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
-          
-          <div className="space-y-1 text-center sm:text-left z-10">
-            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-              <span className="bg-white/20 text-white font-bold text-[10px] px-3 py-1 rounded-full uppercase tracking-wider inline-block">
-                利息对比省钱王
-              </span>
-              <button
-                onClick={handleGenerateImage}
-                disabled={isGenerating}
-                className="bg-amber-400/20 hover:bg-amber-400/35 border border-amber-300/30 text-amber-200 font-bold text-[10px] px-3 py-1 rounded-full inline-flex items-center gap-1 transition-all cursor-pointer active:scale-95"
-              >
-                <Camera className="w-3.5 h-3.5" />
-                <span>生成分享图</span>
-              </button>
-            </div>
-            <h4 className="text-lg font-extrabold leading-tight mt-1.5">
-              选择 “等额本金” 比 “等额本息” 纯利息省下大约
-            </h4>
-            <p className="text-xs text-white/80">
-              在不发生中途提前还款、利率保持恒定不变的前提下，您可以通过等额本金规避更多银行复利与积压。
-            </p>
-          </div>
-          <div className="text-center shrink-0 z-10">
-            <div className="text-2xl sm:text-3xl font-mono font-black text-amber-300 drop-shadow-sm">
-              ¥{interestSavedByPrincipal.toLocaleString()} 元
-            </div>
-            <div className="text-xs text-white/90 mt-1 font-medium bg-black/10 px-2.5 py-1 rounded-md">
-              约合大写：人民币 {formatToWan(interestSavedByPrincipal)} 万元
-            </div>
-          </div>
-        </div>
-      )}
+
 
       {/* 炫酷的图片分享弹窗 */}
       {shareImageUrl && (
